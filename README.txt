@@ -6,4 +6,4 @@ SimpleTube — простой загрузчик YouTube для Windows, для 
 ffmpeg.exe, ffprobe.exe и общие av*.dll / sw*.dll). Отдельный node.exe не нужен:
 yt-dlp использует Node.js, встроенный в Electron (ELECTRON_RUN_AS_NODE).
 
-Старая версия на Python/Tk удалена; она осталась в истории git (коммит 02965a5).
+Старая версия на Python/Tk удалена; она осталась в истории git (коммит 08f9dcb).
