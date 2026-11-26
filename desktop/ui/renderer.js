@@ -345,18 +345,17 @@ $('close').onclick = () => call('close');
 })();
 
 // ---------- liquid glass refraction ----------
-// Builds a displacement map that bends the backdrop along the panel's rounded edge, like a glass bezel.
-(function setupRefraction() {
-  const panel = $('panel');
+// Builds a displacement map that bends the backdrop along an element's rounded edge, like a glass bezel.
+// `bezel` is how far in from the edge the bending reaches; `top` adds a deeper band along the top edge.
+function setupRefraction(element, filter, map, { bezel, top = 0 }) {
   if (!CSS.supports('backdrop-filter', 'url(#refract) blur(1px)')) return;
-  const filter = $('refract'), map = $('refractMap');
-  const BEZEL = 26, canvas = document.createElement('canvas');
+  const canvas = document.createElement('canvas');
   let pending = 0;
   function build() {
     pending = 0;
-    const w = Math.round(panel.offsetWidth), h = Math.round(panel.offsetHeight);
+    const w = Math.round(element.offsetWidth), h = Math.round(element.offsetHeight);
     if (!w || !h) return;
-    const radius = parseFloat(getComputedStyle(panel).borderTopLeftRadius) || 0;
+    const radius = parseFloat(getComputedStyle(element).borderTopLeftRadius) || 0;
     canvas.width = w; canvas.height = h;
     const ctx = canvas.getContext('2d'), image = ctx.createImageData(w, h), data = image.data;
     const hw = w / 2, hh = h / 2;
@@ -373,10 +372,15 @@ $('close').onclick = () => call('close');
         else { dist = qy - radius; nx = 0; ny = Math.sign(py); }
         const depth = -dist, i = (y * w + x) * 4;
         let dx = 0, dy = 0;
-        if (depth < BEZEL) {
-          const t = 1 - Math.max(0, depth) / BEZEL, strength = t * t;
+        if (depth < bezel) {
+          const t = 1 - Math.max(0, depth) / bezel, strength = t * t;
           dx = -nx * strength; dy = -ny * strength;
         }
+        if (y < top) { // pull the picture down into the top band, like looking through thick glass
+          const t = 1 - y / top;
+          dy += t * t * 0.8;
+        }
+        dx = Math.max(-1, Math.min(1, dx)); dy = Math.max(-1, Math.min(1, dy));
         data[i] = 128 + dx * 127; data[i + 1] = 128 + dy * 127; data[i + 2] = 128; data[i + 3] = 255;
       }
     }
@@ -384,10 +388,12 @@ $('close').onclick = () => call('close');
     for (const el of [filter, map]) { el.setAttribute('width', w); el.setAttribute('height', h); }
     filter.setAttribute('x', 0); filter.setAttribute('y', 0);
     map.setAttribute('href', canvas.toDataURL());
-    panel.classList.add('refract');
+    element.classList.add('refract');
   }
-  new ResizeObserver(() => { if (!pending) pending = requestAnimationFrame(build); }).observe(panel);
-})();
+  new ResizeObserver(() => { if (!pending) pending = requestAnimationFrame(build); }).observe(element);
+}
+setupRefraction($('panel'), $('refract'), $('refractMap'), { bezel: 26 });
+setupRefraction($('windowGlass'), $('edgeRefract'), $('edgeRefractMap'), { bezel: 24, top: 110 });
 
 // ---------- start ----------
 call('settings')

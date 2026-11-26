@@ -25,11 +25,16 @@
       <feImage id="refractMap" x="0" y="0" result="map" preserveAspectRatio="none"/>
       <feDisplacementMap in="SourceGraphic" in2="map" scale="46" xChannelSelector="R" yChannelSelector="G"/>
     </filter>
+    <filter id="edgeRefract" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse" primitiveUnits="userSpaceOnUse">
+      <feImage id="edgeRefractMap" x="0" y="0" result="map" preserveAspectRatio="none"/>
+      <feDisplacementMap in="SourceGraphic" in2="map" scale="60" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
   </svg>
 
   <main class="shell" id="shell">
     <div class="intro" id="intro" aria-hidden="true"><div class="glow" id="glow"></div><div class="grain"></div></div>
     <div class="cover" id="cover" aria-hidden="true"><img id="coverImage" alt=""></div>
+    <div class="window-glass" id="windowGlass" aria-hidden="true"></div>
 
     <header class="titlebar">
       <span class="brand">simpletube<span class="brand-dot">.</span></span>
