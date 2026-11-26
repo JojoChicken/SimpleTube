@@ -31,13 +31,17 @@ function parseTime(text) {
 }
 const looksLikeYouTube = text => /^\s*(https?:\/\/)?([\w-]+\.)*(youtube\.com|youtu\.be)\/\S+\s*$/i.test(text || '');
 
-function showError(message) { $('error').textContent = message || ''; }
+function showError(message) {
+  $('error').textContent = message || '';
+  $('errorSlot').classList.toggle('shown', Boolean(message));
+}
 const busy = () => state.phase === 'downloading';
 
 // ---------- rendering ----------
 function render() {
   const { phase } = state, hasVideo = Boolean(state.info);
   shell.classList.toggle('has-video', hasVideo);
+  shell.classList.toggle('downloading', phase === 'downloading');
   for (const id of ['url', 'folder', 'paste', 'chooseFolder', 'start', 'end', 'resetRange']) $(id).disabled = busy();
   for (const thumb of [$('thumbStart'), $('thumbEnd')]) thumb.disabled = busy();
   document.querySelectorAll('.mode').forEach(b => { b.disabled = busy(); });
@@ -322,8 +326,9 @@ $('close').onclick = () => call('close');
   const target = { x: 228, y: 190 }, pos = { ...target };
   let frame = 0;
   const tick = () => {
-    pos.x += (target.x - pos.x) * 0.12;
-    pos.y += (target.y - pos.y) * 0.12;
+    // Low easing factor = the light lags behind the cursor like a soft trail.
+    pos.x += (target.x - pos.x) * 0.06;
+    pos.y += (target.y - pos.y) * 0.06;
     glow.style.setProperty('--x', pos.x + 'px');
     glow.style.setProperty('--y', pos.y + 'px');
     frame = Math.abs(target.x - pos.x) + Math.abs(target.y - pos.y) > 0.5 ? requestAnimationFrame(tick) : 0;

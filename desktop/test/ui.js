@@ -26,8 +26,8 @@ const assert = require('node:assert/strict');
     assert.equal(await page.locator('#start').isVisible(), false);
     const size = await page.evaluate(() => ({ scroll: document.documentElement.scrollHeight, height: innerHeight }));
     assert.ok(size.scroll <= size.height, JSON.stringify(size));
-    await page.mouse.move(330, 150);
-    await page.waitForTimeout(700);
+    await page.mouse.move(330, 420, { steps: 12 });
+    await page.waitForTimeout(1800);
     await shot(page, '01-empty.png');
     console.log('refraction active:', await page.locator('#panel').evaluate(p => p.classList.contains('refract')));
 
@@ -53,6 +53,16 @@ const assert = require('node:assert/strict');
     await page.locator('#end').fill('00:00:08');
     assert.match(await page.locator('#rangeSummary').innerText(), /^Clip · 00:05 of 00:19$/);
     assert.equal(await page.locator('#resetRange').isVisible(), true);
+    // Grabbed thumb at the very start must not be clipped by the panel section.
+    await page.locator('#resetRange').click();
+    const thumb = await page.locator('#thumbStart').boundingBox();
+    await page.mouse.move(thumb.x + thumb.width / 2, thumb.y + thumb.height / 2);
+    await page.mouse.down();
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: path.join(artifacts, '06-drag.png'), clip: { x: 0, y: thumb.y - 40, width: 200, height: 90 } });
+    await page.mouse.up();
+    await page.locator('#start').fill('00:00:03');
+    await page.locator('#end').fill('00:00:08');
 
     // Real download.
     const folder = path.join(artifacts, 'ui-downloads');

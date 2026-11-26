@@ -14,16 +14,29 @@
   --text: #f5efe8;
   --muted: rgba(245, 239, 232, .52);
   --faint: rgba(245, 239, 232, .32);
-  --line: rgba(255, 255, 255, .09);
   --fill: rgba(255, 255, 255, .055);
   --fill-hover: rgba(255, 255, 255, .09);
+  --edge: rgba(255, 255, 255, .14);      /* hairline outline of controls */
+  --hairline: .5px;
   --ember-1: #e8310e;
   --ember-2: #ff6a14;
   --ember-3: #ffa53c;
-  --ember: linear-gradient(110deg, var(--ember-1), var(--ember-2) 45%, var(--ember-3) 70%, var(--ember-2) 85%, var(--ember-1));
+  /* Barely-moving gradient: hues stay within a few degrees of each other. */
+  --ember-soft: linear-gradient(100deg, #d8521d, #e05f28 30%, #e86c30 50%, #e05f28 70%, #d8521d);
   --danger: #ff8a73;
   --ease: cubic-bezier(.2, .8, .2, 1);
   --spring: cubic-bezier(.34, 1.56, .64, 1);
+
+  /* Spacing on a 4px grid. Panel content sits 30px from the window edge (14 margin + 16 padding);
+     the title bar uses the same 30px so the brand and the dots line up with the fields. */
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px;
+  --edge-gap: 30px;
+  --panel-margin: 14px;
+  --control-h: 48px;
+  --r-control: 14px;                      /* = panel radius − panel padding (concentric corners) */
+  --r-panel: 30px;
+  --r-window: 40px;
+
   font-family: Montserrat, sans-serif;
   color: var(--text);
   font-synthesis: none;
@@ -36,12 +49,20 @@ body { margin: 0; padding: 12px; background: transparent; user-select: none; }
 button, input { font: inherit; color: inherit; }
 button { cursor: pointer; border: 0; background: none; padding: 0; -webkit-app-region: no-drag; }
 button:disabled { cursor: default; }
-button:focus-visible, .range-thumb:focus-visible { outline: 2px solid rgba(255, 165, 60, .7); outline-offset: 3px; }
-input { min-width: 0; width: 100%; border: 0; background: none; outline: 0; user-select: text; }
+button:focus-visible { outline: 1.5px solid rgba(230, 120, 50, .7); outline-offset: 3px; }
+input { min-width: 0; width: 100%; padding: 0; border: 0; background: none; outline: 0; user-select: text; }
 input::placeholder { color: var(--faint); }
 svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
 .defs { position: absolute; width: 0; height: 0; overflow: hidden; }
 [hidden] { display: none !important; }
+
+/* Hairline ring drawn with a mask, used for the window and the panel outlines. */
+.shell::before, .shell::after, .panel::before {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; padding: var(--hairline); pointer-events: none;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
 
 /* ---------- Shell ---------- */
 .shell {
@@ -51,24 +72,27 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
   flex-direction: column;
   overflow: hidden;
   isolation: isolate;
-  border-radius: 30px;
+  border-radius: var(--r-window);
   background: var(--bg);
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, .07), 0 6px 14px rgba(0, 0, 0, .35);
 }
+.shell::before, .shell::after { z-index: 10; }
+.shell::before { background: rgba(255, 255, 255, .13); }
+/* During a download a slow dark-orange sweep travels along the window outline. */
+.shell::after {
+  padding: 1px; opacity: 0; transition: opacity .8s var(--ease);
+  background: conic-gradient(from var(--spin), transparent, rgba(170, 66, 16, .3) 90deg, #c4561a 170deg, rgba(170, 66, 16, .3) 250deg, transparent 340deg);
+  animation: spin 4.5s linear infinite;
+}
+.shell.downloading::after { opacity: 1; }
 
-/* ---------- Intro: cursor glow + grain (empty state only) ---------- */
+/* ---------- Intro: soft cursor trail + grain (empty state only) ---------- */
 .intro { position: absolute; inset: 0; z-index: -1; transition: opacity .7s var(--ease); }
-.intro::before { /* resting ember behind the headline */
-  content: ''; position: absolute; left: 50%; top: 30%; width: 420px; height: 340px; translate: -50% -50%;
-  background: radial-gradient(closest-side, rgba(150, 72, 18, .55), rgba(90, 38, 10, .22) 55%, transparent);
-  filter: blur(8px);
-}
 .glow {
-  position: absolute; left: 0; top: 0; width: 520px; height: 520px;
+  position: absolute; left: 0; top: 0; width: 560px; height: 560px;
   translate: calc(var(--x, 228px) - 50%) calc(var(--y, 190px) - 50%);
-  background: radial-gradient(closest-side, rgba(255, 128, 38, .34), rgba(214, 78, 18, .14) 45%, transparent);
+  background: radial-gradient(closest-side, rgba(226, 110, 40, .17), rgba(170, 70, 20, .07) 45%, transparent);
   opacity: var(--glow-opacity, 0);
-  transition: opacity .6s var(--ease);
+  transition: opacity 1.2s var(--ease);
   pointer-events: none;
 }
 .grain {
@@ -103,14 +127,16 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 
 /* ---------- Title bar ---------- */
 .titlebar {
-  height: 56px; flex-shrink: 0; padding: 0 22px 0 26px;
+  height: 60px; flex-shrink: 0;
+  /* The dots carry 6px of hit area, so their visible edge also lands at 30px. */
+  padding: 0 calc(var(--edge-gap) - 6px) 0 var(--edge-gap);
   display: flex; align-items: center; justify-content: space-between;
   -webkit-app-region: drag;
 }
 .brand { font-size: 15px; font-weight: 700; letter-spacing: -.5px; }
 .brand-dot { color: var(--ember-2); }
 .window-controls { display: flex; gap: 9px; padding: 6px; -webkit-app-region: no-drag; }
-.window-dot { position: relative; width: 13px; height: 13px; border-radius: 50%; transition: filter .2s; }
+.window-dot { position: relative; width: 13px; height: 13px; border-radius: 50%; transition: filter .2s, scale .3s var(--spring); }
 .window-dot.minimize { background: #f2bf3d; }
 .window-dot.close { background: #ff5b4d; }
 .window-dot::before, .window-dot::after {
@@ -121,17 +147,16 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .window-dot.minimize::after { display: none; }
 .window-dot.close::before { rotate: 45deg; }
 .window-dot.close::after { rotate: -45deg; }
-.window-dot:hover, .window-dot:focus-visible { animation: bounce .5s var(--spring); }
+.window-dot:hover, .window-dot:focus-visible { scale: 1.12; animation: bounce .5s var(--spring); }
 .window-dot:hover::before, .window-dot:hover::after,
 .window-dot:focus-visible::before, .window-dot:focus-visible::after { opacity: 1; scale: 1; }
 .window-dot:active { filter: brightness(.85); }
 @keyframes bounce { 0% { scale: 1; } 35% { scale: 1.32; } 65% { scale: .92; } 100% { scale: 1.12; } }
-.window-dot:hover { scale: 1.12; }
 
 /* ---------- Stage: headline / progress ring ---------- */
 .stage { flex: 1; min-height: 0; display: grid; place-items: center; position: relative; }
 .headline {
-  margin: 0 0 6px; font-size: 25px; font-weight: 600; letter-spacing: -.6px;
+  margin: 0; font-size: 25px; font-weight: 600; letter-spacing: -.6px;
   transition: opacity .5s var(--ease), translate .6s var(--ease);
 }
 .shell.has-video .headline { opacity: 0; translate: 0 -10px; pointer-events: none; }
@@ -142,11 +167,11 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
   background: rgba(12, 10, 9, .42);
   -webkit-backdrop-filter: blur(14px) saturate(1.4);
   backdrop-filter: blur(14px) saturate(1.4);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18), 0 10px 30px rgba(0, 0, 0, .35);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .35);
   animation: rise .5s var(--ease);
 }
 .ring-track, .ring-fill { position: absolute; inset: 0; border-radius: 50%; }
-.ring-track { box-shadow: inset 0 0 0 4px rgba(255, 255, 255, .1); }
+.ring-track { box-shadow: inset 0 0 0 4px rgba(255, 255, 255, .08); }
 .ring-fill {
   background: conic-gradient(from var(--spin), var(--ember-1), var(--ember-2), var(--ember-3), var(--ember-2), var(--ember-1));
   -webkit-mask: conic-gradient(#000 calc(var(--p) * 1%), transparent 0), radial-gradient(closest-side, transparent calc(100% - 4px), #000 calc(100% - 3.5px));
@@ -165,32 +190,25 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 
 /* ---------- Liquid-glass panel ---------- */
 .panel {
-  position: relative; flex-shrink: 0; margin: 0 14px 14px; padding: 16px 16px 6px;
-  border-radius: 28px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, .085), rgba(255, 255, 255, .035) 40%, rgba(255, 255, 255, .025));
+  position: relative; flex-shrink: 0;
+  margin: 0 var(--panel-margin) var(--panel-margin);
+  padding: var(--s4);
+  border-radius: var(--r-panel);
+  background: linear-gradient(180deg, rgba(255, 255, 255, .08), rgba(255, 255, 255, .035) 40%, rgba(255, 255, 255, .025));
   -webkit-backdrop-filter: blur(22px) saturate(1.7) brightness(.82);
   backdrop-filter: blur(22px) saturate(1.7) brightness(.82);
-  box-shadow:
-    inset 0 1px 1px rgba(255, 255, 255, .32),
-    inset 1px 0 1px rgba(255, 255, 255, .1),
-    inset -1px 0 1px rgba(255, 255, 255, .1),
-    inset 0 -14px 28px rgba(0, 0, 0, .18),
-    0 18px 50px rgba(0, 0, 0, .45);
+  box-shadow: inset 0 -14px 28px rgba(0, 0, 0, .18), 0 18px 50px rgba(0, 0, 0, .45);
 }
 .panel.refract {
   -webkit-backdrop-filter: url(#refract) blur(16px) saturate(1.7) brightness(.82);
   backdrop-filter: url(#refract) blur(16px) saturate(1.7) brightness(.82);
 }
-.panel::before { /* specular rim: bright on top, catching light down the sides */
-  content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none;
-  background: linear-gradient(180deg, rgba(255, 255, 255, .55), rgba(255, 255, 255, .14) 22%, rgba(255, 255, 255, .05) 55%, rgba(255, 255, 255, .12));
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+.panel::before { /* hairline rim: brightest on top, catching light down the sides */
+  background: linear-gradient(180deg, rgba(255, 255, 255, .55), rgba(255, 255, 255, .18) 22%, rgba(255, 255, 255, .07) 55%, rgba(255, 255, 255, .14));
 }
 .panel::after { /* soft sheen near the top edge */
   content: ''; position: absolute; inset: 0 0 auto; height: 90px; border-radius: inherit; pointer-events: none;
-  background: radial-gradient(120% 90% at 50% -30%, rgba(255, 255, 255, .13), transparent 70%);
+  background: radial-gradient(120% 90% at 50% -30%, rgba(255, 255, 255, .11), transparent 70%);
 }
 
 /* Clip section unfolds once a video is loaded. */
@@ -198,110 +216,119 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
   display: grid; grid-template-rows: 0fr; opacity: 0; visibility: hidden; /* hidden also keeps Tab out of it */
   transition: grid-template-rows .55s var(--ease), opacity .4s var(--ease), visibility 0s .55s;
 }
-.clip-inner { overflow: hidden; min-height: 0; }
 .shell.has-video .clip { grid-template-rows: 1fr; opacity: 1; visibility: visible; transition-delay: 0s; }
-.clip-inner > :last-child { margin-bottom: 14px; }
+/* The clipping box reaches 12px past the content on each side, so the enlarged slider thumb isn't cut. */
+.clip-inner { overflow: hidden; min-height: 0; margin: 0 calc(-1 * var(--s3)); padding: 0 var(--s3); }
+.clip-inner > :last-child { margin-bottom: var(--s4); }
 
 .video-title {
-  margin: 2px 4px 12px; font-size: 13.5px; font-weight: 600; letter-spacing: -.2px;
+  margin: 0 var(--s1) var(--s3); font-size: 13.5px; line-height: 18px; font-weight: 600; letter-spacing: -.2px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
 .field {
-  display: flex; align-items: center; gap: 10px;
-  background: var(--fill); border-radius: 16px;
-  box-shadow: inset 0 0 0 1px var(--line), inset 0 1px 0 rgba(255, 255, 255, .05);
+  display: flex; align-items: center;
+  background: var(--fill); border-radius: var(--r-control);
+  box-shadow: inset 0 0 0 var(--hairline) var(--edge);
   transition: background .2s, box-shadow .2s;
 }
 .field:hover { background: var(--fill-hover); }
-.field:focus-within { box-shadow: inset 0 0 0 1px rgba(255, 165, 60, .45), 0 0 0 3px rgba(255, 106, 20, .12); }
+.field:focus-within { box-shadow: inset 0 0 0 1px rgba(230, 120, 50, .45); }
 
-.time-row { display: flex; align-items: center; gap: 10px; }
-.time-field { flex: 1; flex-direction: column; align-items: flex-start; gap: 1px; padding: 7px 14px 8px; }
-.time-field span { font-size: 10.5px; font-weight: 500; color: var(--muted); }
-.time-field input { font-size: 16px; font-weight: 500; letter-spacing: .3px; font-variant-numeric: tabular-nums; }
-.time-field.invalid { box-shadow: inset 0 0 0 1px rgba(255, 138, 115, .6); }
-.time-dash { width: 12px; height: 1.6px; border-radius: 1px; background: var(--faint); flex-shrink: 0; }
+.time-row { display: flex; align-items: center; gap: var(--s3); }
+.time-field { flex: 1; height: 52px; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px; padding: 0 var(--s4); }
+.time-field span { font-size: 10.5px; line-height: 12px; font-weight: 500; color: var(--muted); }
+.time-field input { font-size: 16px; line-height: 20px; font-weight: 500; letter-spacing: .3px; font-variant-numeric: tabular-nums; }
+.time-field.invalid { box-shadow: inset 0 0 0 1px rgba(255, 138, 115, .55); }
+.time-dash { width: 12px; height: 1.5px; border-radius: 1px; background: var(--faint); flex-shrink: 0; }
 
-.range { position: relative; height: 22px; margin: 8px 7px 2px; touch-action: none; cursor: pointer; }
+/* 7px side inset = thumb radius, so the thumbs line up with the field edges. */
+.range { position: relative; height: 24px; margin: var(--s2) 7px 0; touch-action: none; cursor: pointer; }
 .range-track, .range-fill { position: absolute; top: 50%; height: 4px; translate: 0 -50%; border-radius: 2px; }
 .range-track { left: 0; right: 0; background: rgba(255, 255, 255, .1); }
-.range-fill { background: var(--ember); background-size: 200% 100%; left: var(--a, 0%); right: calc(100% - var(--b, 100%)); }
+.range-fill { background: var(--ember-soft); background-size: 200% 100%; left: var(--a, 0%); right: calc(100% - var(--b, 100%)); }
 .range-thumb {
   position: absolute; top: 50%; width: 14px; height: 14px; border-radius: 50%; translate: -50% -50%;
-  background: #fbf7f2; box-shadow: 0 1px 6px rgba(0, 0, 0, .5), 0 0 0 3px rgba(255, 255, 255, .06);
+  background: #fbf7f2; box-shadow: 0 1px 6px rgba(0, 0, 0, .5);
   cursor: grab; transition: scale .2s var(--spring);
 }
 .range-thumb:hover, .range-thumb.dragging { scale: 1.25; }
 .range-thumb.dragging { cursor: grabbing; }
+.range-thumb:focus-visible { outline-offset: 2px; }
 #thumbStart { left: var(--a, 0%); }
 #thumbEnd { left: var(--b, 100%); }
 
-.range-meta { display: flex; justify-content: space-between; align-items: center; min-height: 18px; margin: 4px 4px 0; font-size: 11.5px; color: var(--muted); }
+.range-meta { display: flex; justify-content: space-between; align-items: center; height: 16px; margin: var(--s1) var(--s1) 0; font-size: 11.5px; color: var(--muted); }
 .text-button { font-size: 11.5px; font-weight: 600; color: var(--ember-3); transition: opacity .2s; }
 .text-button:hover { opacity: .75; }
 
-.input-row { display: flex; gap: 8px; margin-bottom: 8px; }
-.input-field { flex: 1; height: 46px; padding: 0 14px; color: var(--muted); }
+.input-row { display: flex; gap: var(--s2); }
+.input-row + .input-row { margin-top: var(--s2); }
+.input-field { flex: 1; height: var(--control-h); padding: 0 var(--s4); gap: var(--s3); color: var(--muted); }
+.input-field svg { width: 18px; height: 18px; }
 .input-field input { font-size: 12.5px; color: var(--text); text-overflow: ellipsis; }
 .field-button {
-  width: 74px; border-radius: 16px; font-size: 12.5px; font-weight: 600; color: rgba(245, 239, 232, .8);
-  background: var(--fill); box-shadow: inset 0 0 0 1px var(--line), inset 0 1px 0 rgba(255, 255, 255, .05);
+  width: 76px; border-radius: var(--r-control); font-size: 12.5px; font-weight: 600; color: rgba(245, 239, 232, .8);
+  background: var(--fill); box-shadow: inset 0 0 0 var(--hairline) var(--edge);
   transition: background .2s, color .2s, scale .2s;
 }
 .field-button:hover:not(:disabled) { background: var(--fill-hover); color: var(--text); }
 .field-button:active:not(:disabled) { scale: .96; }
-.shell.dropping .input-row:first-of-type .field { box-shadow: inset 0 0 0 1px rgba(255, 165, 60, .8), 0 0 0 4px rgba(255, 106, 20, .18); }
+.shell.dropping .input-row:first-of-type .field { background: rgba(230, 120, 50, .08); box-shadow: inset 0 0 0 1px rgba(230, 120, 50, .7); }
 
-.modes { display: flex; justify-content: center; gap: 8px; margin: 6px 0 14px; }
+.modes { display: flex; justify-content: center; gap: var(--s2); margin: var(--s4) 0; }
 .mode {
-  position: relative; width: 60px; height: 38px; border-radius: 14px; display: grid; place-items: center;
-  color: var(--muted); background: var(--fill); box-shadow: inset 0 0 0 1px var(--line);
+  position: relative; width: 60px; height: 40px; border-radius: 12px; display: grid; place-items: center;
+  color: var(--muted); background: var(--fill); box-shadow: inset 0 0 0 var(--hairline) var(--edge);
   transition: background .2s, color .2s, box-shadow .2s, scale .2s;
 }
 .mode svg.wide { width: 23px; }
 .mode:hover:not(:disabled) { color: var(--text); background: var(--fill-hover); }
 .mode:active:not(:disabled) { scale: .95; }
-.mode.selected { color: var(--text); background: rgba(255, 255, 255, .14); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .22), inset 0 1px 0 rgba(255, 255, 255, .25); }
+.mode.selected { color: var(--text); background: rgba(255, 255, 255, .14); box-shadow: inset 0 0 0 var(--hairline) rgba(255, 255, 255, .35); }
 .tooltip {
-  position: absolute; bottom: calc(100% + 8px); left: 50%; translate: -50% 4px; padding: 5px 9px; border-radius: 9px;
+  position: absolute; bottom: calc(100% + var(--s2)); left: 50%; translate: -50% 4px; padding: 5px 9px; border-radius: 9px;
   white-space: nowrap; font-size: 11px; font-weight: 500; color: var(--text);
-  background: rgba(20, 17, 15, .92); box-shadow: inset 0 0 0 1px var(--line);
+  background: rgba(20, 17, 15, .92); box-shadow: inset 0 0 0 var(--hairline) var(--edge);
   opacity: 0; pointer-events: none; transition: opacity .15s, translate .2s var(--ease);
 }
 .mode:hover .tooltip, .mode:focus-visible .tooltip { opacity: 1; translate: -50% 0; transition-delay: .35s; }
 
-.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.primary, .secondary { height: 50px; border-radius: 17px; font-size: 14px; font-weight: 600; letter-spacing: -.1px; }
+.actions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3); }
+.primary, .secondary { height: var(--control-h); border-radius: var(--r-control); font-size: 14px; font-weight: 600; letter-spacing: -.1px; }
 .primary {
   position: relative; overflow: hidden; isolation: isolate;
   display: flex; align-items: center; justify-content: center; gap: 9px;
   color: #17120f; background: #f7f2ec;
-  box-shadow: inset 0 1px 0 #fff, 0 6px 20px rgba(0, 0, 0, .25);
-  transition: color .3s var(--ease), box-shadow .3s var(--ease), scale .2s;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .25);
+  transition: color .35s var(--ease), box-shadow .35s var(--ease), scale .2s;
 }
 .primary svg { width: 18px; height: 18px; stroke-width: 1.9; }
-.primary::before { /* animated ember gradient, faded in on hover / while working */
+.primary::before { /* very soft, slowly drifting ember gradient, faded in on hover / while working */
   content: ''; position: absolute; inset: 0; z-index: -1; opacity: 0;
-  background: var(--ember); background-size: 250% 100%;
-  animation: flow 3.2s linear infinite; transition: opacity .35s var(--ease);
+  background: var(--ember-soft); background-size: 250% 100%;
+  animation: flow 8s linear infinite; transition: opacity .45s var(--ease);
 }
-.primary:hover:not(:disabled), .primary.working { color: #fff; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), 0 8px 26px rgba(232, 70, 14, .35); }
+.primary:hover:not(:disabled), .primary.working { color: #fff; box-shadow: 0 6px 22px rgba(216, 82, 29, .16); }
 .primary:hover:not(:disabled)::before, .primary.working::before { opacity: 1; }
 .primary:active:not(:disabled) { scale: .97; }
-.primary:disabled:not(.working) { color: var(--faint); background: var(--fill); box-shadow: inset 0 0 0 1px var(--line); }
+.primary:disabled:not(.working) { color: var(--faint); background: var(--fill); box-shadow: inset 0 0 0 var(--hairline) var(--edge); }
 .primary.working { cursor: default; }
 @keyframes flow { to { background-position: -250% 0; } }
 
 .secondary {
-  color: rgba(245, 239, 232, .78); background: var(--fill); box-shadow: inset 0 0 0 1px var(--line);
+  color: rgba(245, 239, 232, .78); background: var(--fill); box-shadow: inset 0 0 0 var(--hairline) var(--edge);
   transition: background .2s, color .2s, opacity .2s, scale .2s;
 }
 .secondary:hover:not(:disabled) { background: var(--fill-hover); color: var(--text); }
 .secondary:active:not(:disabled) { scale: .97; }
 .secondary:disabled { opacity: .35; }
 
-.error { min-height: 26px; margin: 0; padding: 6px 4px 0; font-size: 11.5px; line-height: 1.35; color: var(--danger); text-align: center; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+/* Error slot: takes no space until there is a message, then unfolds under the buttons. */
+.error-slot { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .3s var(--ease); }
+.error-slot.shown { grid-template-rows: 1fr; }
+.error { min-height: 0; overflow: hidden; margin: 0; font-size: 11.5px; line-height: 16px; color: var(--danger); text-align: center; }
+.error::before { content: ''; display: block; height: var(--s3); }
 
 input:disabled, .field-button:disabled, .mode:disabled { opacity: .55; }
 
