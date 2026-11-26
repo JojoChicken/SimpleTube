@@ -1,10 +1,4 @@
-.venv/
-__pycache__/
-build/
-release/
 tools/
-test-output/
-*.spec
 node_modules/
 release-v2/
 desktop/artifacts/
