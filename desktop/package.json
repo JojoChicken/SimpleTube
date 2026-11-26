@@ -1,0 +1,19 @@
+{
+  "name": "simpletube",
+  "productName": "SimpleTube",
+  "version": "2.0.0",
+  "description": "A quiet place to save your favourite moments.",
+  "main": "main.js",
+  "author": "SimpleTube",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/*.test.js",
+    "package": "electron-packager . SimpleTube --platform=win32 --arch=x64 --out=../release-v2 --overwrite --icon=ui/icon.ico --extra-resource=../tools --ignore=^/test --ignore=^/artifacts"
+  },
+  "devDependencies": {
+    "@electron/packager": "^20.3.0",
+    "electron": "^45.5.0",
+    "playwright": "^1.65.1"
+  }
+}

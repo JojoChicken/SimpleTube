@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; media-src https://*.googlevideo.com; connect-src 'none'; object-src 'none'; base-uri 'none'; frame-src 'none'">
+  <title>SimpleTube</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <svg class="symbol-bank" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="m9 5 11 7-11 7z" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14" stroke-width="3"/></symbol>
+    <symbol id="i-video" viewBox="0 0 24 24"><rect x="3" y="6" width="12" height="12" rx="3"/><path d="m15 10 5-3v10l-5-3"/></symbol>
+    <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 17V6l11-2v11M9 9l11-2"/><ellipse cx="6" cy="18" rx="3" ry="2.5"/><ellipse cx="17" cy="16" rx="3" ry="2.5"/></symbol>
+    <symbol id="i-both" viewBox="0 0 28 24"><rect x="2" y="5" width="13" height="13" rx="3"/><path d="m7 9 5 3-5 3zM21 16V6l5-1"/><ellipse cx="18.5" cy="17.5" rx="2.5" ry="2"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="m10 13 4-4M8 15l-1 1a4 4 0 0 1-6-6l5-5a4 4 0 0 1 6 0M16 9l1-1a4 4 0 0 1 6 6l-5 5a4 4 0 0 1-6 0" transform="translate(1 0) scale(.9)"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 8V6a2 2 0 0 1 2-2h5l3 3h6a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8h18"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-5-5 5 5-5 5"/></symbol>
+    <symbol id="i-sound" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4zM17 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/></symbol>
+    <symbol id="i-muted" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4zM17 9l5 6m0-6-5 6"/></symbol>
+  </defs></svg>
+  <main class="shell">
+    <header class="titlebar">
+      <span class="brand"><span class="brand-mark"><svg><use href="#i-play"/></svg></span>simpletube<span class="brand-dot">.</span></span>
+      <div class="window-controls">
+        <button id="minimize" class="window-dot minimize" aria-label="Свернуть" title="Свернуть"><span>−</span></button>
+        <button id="close" class="window-dot close" aria-label="Закрыть" title="Закрыть"><span>×</span></button>
+      </div>
+    </header>
+
+    <section class="preview" id="preview" aria-label="Предпросмотр видео">
+      <div class="empty-art" id="emptyArt"><div class="orb orb-one"></div><div class="orb orb-two"></div><div class="orb orb-three"></div><span class="empty-caption">Every moment, yours.</span></div>
+      <img id="posterGray" class="poster gray" alt="" hidden>
+      <img id="posterColor" class="poster color" alt="Обложка видео" hidden>
+      <video id="player" playsinline preload="none" hidden></video>
+      <audio id="audio" preload="none"></audio>
+      <div class="preview-shade"></div>
+      <span id="previewTag" class="glass-tag"><span class="tiny-dot"></span> YOUR NEXT FAVOURITE</span>
+      <button id="playButton" class="play-button" aria-label="Предпросмотр фрагмента" title="Вставьте ссылку для предпросмотра"><svg><use href="#i-play"/></svg></button>
+      <div id="loading" class="preview-loading" hidden><span class="spinner"></span><span id="loadingLabel">Ищем ваш момент…</span></div>
+      <div id="progressOverlay" class="progress-overlay" hidden>
+        <div class="progress-edge" id="progressEdge"></div>
+        <div class="progress-readout"><strong id="percent">0<span>%</span></strong><small id="progressStage">DOWNLOADING</small></div>
+      </div>
+      <span id="durationBadge" class="duration-badge" hidden></span>
+      <div class="player-controls" id="playerControls" hidden>
+        <button id="togglePlay" aria-label="Пауза"><svg><use href="#i-pause"/></svg></button>
+        <span id="playTime">00:00</span><input id="seek" type="range" min="0" max="100" step="0.1" value="0" aria-label="Позиция в выбранном фрагменте">
+        <button id="mute" aria-label="Выключить звук"><svg><use href="#i-sound"/></svg></button>
+        <button id="stopPreview" class="stop-preview" aria-label="Закрыть предпросмотр">×</button>
+      </div>
+    </section>
+
+    <div class="caption-row"><span id="videoTitle">Сохраните то, что хочется пересмотреть.</span><span id="quality" class="quality">BEST QUALITY</span></div>
+
+    <section class="time-row" aria-label="Фрагмент">
+      <label class="time-field"><span>FROM</span><input id="start" aria-label="Начало фрагмента" value="00:00:00" maxlength="9" inputmode="numeric" spellcheck="false" disabled></label>
+      <span class="time-divider"><svg><use href="#i-arrow"/></svg></span>
+      <label class="time-field"><span>TO</span><input id="end" aria-label="Конец фрагмента" placeholder="00:00:00" maxlength="9" inputmode="numeric" spellcheck="false" disabled></label>
+    </section>
+    <div class="range-meta"><span id="rangeSummary">Весь ролик или только любимый фрагмент</span><button id="resetRange" hidden>Весь ролик</button></div>
+
+    <div class="input-row"><label class="input-shell"><svg><use href="#i-link"/></svg><input id="url" aria-label="Ссылка на YouTube" placeholder="Ссылка на YouTube" spellcheck="false" autocomplete="off"></label><button id="paste" class="field-button">Paste</button></div>
+    <div class="input-row"><label class="input-shell"><svg><use href="#i-folder"/></svg><input id="folder" aria-label="Папка сохранения" placeholder="Куда сохранить" spellcheck="false" autocomplete="off"></label><button id="chooseFolder" class="field-button">Folder</button></div>
+
+    <div class="modes" role="radiogroup" aria-label="Что скачать">
+      <button class="mode selected" data-mode="full" role="radio" aria-checked="true" aria-label="Видео со звуком"><svg><use href="#i-both"/></svg><span class="tooltip" role="tooltip">Видео со звуком</span></button>
+      <button class="mode" data-mode="video" role="radio" aria-checked="false" aria-label="Только видео" tabindex="-1"><svg><use href="#i-video"/></svg><span class="tooltip" role="tooltip">Только видео</span></button>
+      <button class="mode" data-mode="audio" role="radio" aria-checked="false" aria-label="Только аудио" tabindex="-1"><svg><use href="#i-music"/></svg><span class="tooltip" role="tooltip">Только аудио</span></button>
+    </div>
+
+    <div class="status" id="status" role="status" aria-live="polite">Без лишнего. Только ваш момент.</div>
+    <footer class="actions"><button id="download" class="primary" disabled><svg><use href="#i-download"/></svg><span>Download</span></button><button id="cancel" class="secondary" disabled>Cancel</button></footer>
+    <div class="footer-note"><span class="footer-dot"></span><span id="footerNote">MADE FOR YOUR FAVOURITES</span></div>
+  </main>
+  <script src="renderer.js"></script>
+</body>
+</html>
