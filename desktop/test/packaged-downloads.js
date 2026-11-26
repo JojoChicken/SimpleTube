@@ -8,6 +8,7 @@ const exe = path.resolve(__dirname, '../../release-v2/SimpleTube-win32-x64/Simpl
 const ffprobe = path.resolve(__dirname, '../../release-v2/SimpleTube-win32-x64/resources/tools/ffprobe.exe');
 const cases = [
   { name: 'whole video, video+audio', url: 'https://www.youtube.com/watch?v=jNQXAC9IVRw', mode: 'full' },
+  { name: 'whole 3.5 min video, video+audio', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', mode: 'full' },
   { name: 'whole video, audio only', url: 'https://www.youtube.com/watch?v=jNQXAC9IVRw', mode: 'audio' },
   { name: '4K AV1 clip, video+audio', url: 'https://www.youtube.com/watch?v=aqz-KE-bpKQ', mode: 'full', start: '00:00:10', end: '00:00:13' },
   { name: '4K AV1 clip, video only', url: 'https://www.youtube.com/watch?v=aqz-KE-bpKQ', mode: 'video', start: '00:00:20', end: '00:00:23' },
@@ -35,14 +36,23 @@ const cases = [
       if (c.start) { await typeInto('#start', c.start); await typeInto('#end', c.end); }
       await page.locator(`[data-mode="${c.mode}"]`).click();
       await page.locator('#download').click({ timeout: 10000 });
-      await page.waitForFunction(() => document.querySelector('#download').innerText === 'Open in folder' || document.querySelector('#error').textContent, {}, { timeout: 400000 });
+      // Sample the ring every 500 ms: it must move from the start and never go backwards.
+      const ring = [];
+      while (!(await page.evaluate(() => document.querySelector('#download').innerText === 'Open in folder' || document.querySelector('#error').textContent))) {
+        ring.push(parseInt(await page.locator('#percent').innerText(), 10));
+        if (ring.length > 800) break;
+        await page.waitForTimeout(500);
+      }
+      const ringOk = ring.every((p, i) => i === 0 || p >= ring[i - 1]) && ring.slice(2).every(p => p > 0);
       const error = await page.locator('#error').innerText();
       const file = (await fs.readdir(folder)).find(f => !before.has(f));
       if (error || !file) { failed++; console.log(`FAIL  ${c.name}: ${error || 'no file'}`); continue; }
       const probe = JSON.parse(execFileSync(ffprobe, ['-v', 'error', '-show_streams', '-show_format', '-of', 'json', path.join(folder, file)]));
       const streams = probe.streams.map(s => `${s.codec_type}:${s.codec_name}${s.height ? ' ' + s.height + 'p' : ''}${s.sample_rate ? ' ' + s.sample_rate / 1000 + 'kHz' : ''}`).join(', ');
       const kbps = Math.round(Number(probe.format.bit_rate) / 1000);
-      console.log(`OK    ${c.name}: ${file} — ${Number(probe.format.duration).toFixed(1)}s — ${streams} — ${kbps} kbps total`);
+      if (!ringOk) failed++;
+      console.log(`${ringOk ? 'OK  ' : 'FAIL'}  ${c.name}: ${file} — ${Number(probe.format.duration).toFixed(1)}s — ${streams} — ${kbps} kbps total`);
+      console.log(`      ring every 0.5 s: ${ring.join(' ')}`);
     }
   } finally { await app.close(); }
   if (failed) process.exitCode = 1;

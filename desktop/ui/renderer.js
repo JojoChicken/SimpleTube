@@ -64,6 +64,51 @@ function setProgress(percent) {
   $('percent').textContent = Math.floor(p) + '%';
 }
 
+/**
+ * Keeps the ring moving so a download never looks frozen.
+ * 1. Lead-in: before yt-dlp reports anything (connecting, solving YouTube's checks — often ~5–10 s)
+ *    the ring eases on its own toward LEAD_CAP: fast at first, then slower and slower.
+ * 2. Hand-off: once real progress arrives, it is spread over what's left of the ring from the point
+ *    reached, so the ring never jumps back or stalls.
+ * 3. Creep: if real progress pauses (merging tracks, checking the file) the ring keeps crawling slowly.
+ * The shown value never decreases and stays below 100 until the download really finishes.
+ */
+const progress = (() => {
+  const LEAD_CAP = 30, LEAD_TAU = 8000;          // ~14% after 5 s, ~21% after 10 s, never above 30%
+  const CREEP_DELAY = 1500, CREEP_SPEED = 0.25, CREEP_MAX = 6; // %/s after 1.5 s of silence, up to +6%
+  let started = 0, real = 0, base = null, shown = 0, lastChange = 0, frame = 0;
+
+  function target(now) {
+    if (base === null) return LEAD_CAP * (1 - Math.exp(-(now - started) / LEAD_TAU));
+    const mapped = base + real * (100 - base) / 100;
+    const creep = Math.min(CREEP_MAX, Math.max(0, now - lastChange - CREEP_DELAY) / 1000 * CREEP_SPEED);
+    return mapped + creep;
+  }
+  function tick(now) {
+    const goal = Math.min(99, Math.max(shown, target(now)));
+    shown += (goal - shown) * 0.12;               // ease toward the goal every frame
+    setProgress(shown);
+    frame = requestAnimationFrame(tick);
+  }
+  return {
+    start() {
+      cancelAnimationFrame(frame);
+      started = lastChange = performance.now(); real = 0; base = null; shown = 0;
+      setProgress(0);
+      frame = requestAnimationFrame(tick);
+    },
+    report(percent) {
+      if (!(percent > real)) return;
+      if (base === null) { if (percent < 0.5) return; base = shown; }
+      real = percent; lastChange = performance.now();
+    },
+    stop(finalPercent) {
+      cancelAnimationFrame(frame);
+      if (finalPercent !== undefined) setProgress(finalPercent);
+    },
+  };
+})();
+
 // Any change to what will be downloaded resets a finished download back to "ready".
 function invalidateDone() {
   if (state.phase === 'done') { state.phase = 'ready'; render(); }
@@ -293,19 +338,20 @@ $('download').onclick = async () => {
   try { range = readRange(); } catch (error) { showError(error.message); return; }
   state.phase = 'downloading';
   showError('');
-  setProgress(0);
+  progress.start();
   render();
   try {
     await call('download', { url: $('url').value, folder: $('folder').value, mode: state.mode, start: range.start, end: range.end });
-    setProgress(100);
+    progress.stop(100);
     state.phase = 'done';
   } catch (error) {
+    progress.stop();
     state.phase = state.info ? 'ready' : 'empty';
     showError(error.message === CANCELLED ? '' : error.message);
   }
   render();
 };
-api.onProgress(data => { if (busy()) setProgress(Math.min(99, Number(data.percent) || 0)); });
+api.onProgress(data => { if (busy()) progress.report(Number(data.percent) || 0); });
 
 $('cancel').onclick = async () => {
   if (state.phase === 'inspecting') {

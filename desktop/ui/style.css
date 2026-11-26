@@ -201,7 +201,7 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
   -webkit-mask-composite: source-in;
   mask: conic-gradient(#000 calc(var(--p) * 1%), transparent 0) intersect, radial-gradient(closest-side, transparent calc(100% - 4px), #000 calc(100% - 3.5px));
   animation: spin 2.4s linear infinite;
-  transition: --p .4s var(--ease);
+  transition: --p .2s linear; /* renderer.js eases every frame; this only smooths the final jump */
 }
 .ring-label { font-size: 20px; font-weight: 600; letter-spacing: -.5px; font-variant-numeric: tabular-nums; }
 .ring-check { display: none; width: 30px; height: 30px; stroke-width: 2.2; color: var(--ember-3); }

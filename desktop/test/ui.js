@@ -70,7 +70,17 @@ const assert = require('node:assert/strict');
     await fs.mkdir(folder, { recursive: true });
     await page.locator('#folder').fill(folder);
     await page.locator('#download').click();
-    await page.waitForFunction(() => document.querySelector('#download').innerText === 'Open in folder', {}, { timeout: 120000 });
+    // The ring must start moving right away and never go backwards.
+    const samples = [];
+    while (await page.locator('#download').innerText() !== 'Open in folder') {
+      samples.push(parseInt(await page.locator('#percent').innerText(), 10));
+      if (samples.length > 480) throw Error('Download took over 2 minutes');
+      await page.waitForTimeout(250);
+    }
+    console.log('ring %, every 250 ms:', samples.join(' '));
+    assert.ok(samples.slice(4).every(p => p > 0), 'ring still at 0% after 1 s');
+    assert.ok(samples.every((p, i) => i === 0 || p >= samples[i - 1]), 'ring went backwards');
+    assert.ok(Math.max(...samples) < 100, 'ring hit 100% before the download finished');
     await page.waitForTimeout(600);
     await shot(page, '04-complete.png');
     assert.equal((await fs.readdir(folder)).length, 1);
@@ -78,19 +88,22 @@ const assert = require('node:assert/strict');
     assert.equal(await page.locator('#download').innerText(), 'Download');
     assert.equal(await page.locator('#ring').isVisible(), false);
 
-    // Deterministic progress state, then cancel.
+    // Deterministic progress: silent lead-in first, then a real 66% report, then cancel.
     await app.evaluate(({ ipcMain, BrowserWindow }) => {
       let finish;
       ipcMain.removeHandler('download'); ipcMain.removeHandler('cancel');
-      ipcMain.handle('download', () => new Promise(resolve => {
-        finish = resolve;
-        BrowserWindow.getAllWindows()[0].webContents.send('progress', { stage: 'downloading', percent: 66 });
-      }));
+      ipcMain.handle('download', () => new Promise(resolve => { finish = resolve; }));
       ipcMain.handle('cancel', () => { finish?.({ ok: false, error: 'Cancelled' }); return { ok: true }; });
+      globalThis.sendProgress = percent => BrowserWindow.getAllWindows()[0].webContents.send('progress', { stage: 'downloading', percent });
     });
     await page.locator('[data-mode="full"]').click();
     await page.locator('#download').click();
-    await page.waitForFunction(() => document.querySelector('#percent').textContent === '66%');
+    await page.waitForTimeout(3000);
+    const lead = parseInt(await page.locator('#percent').innerText(), 10);
+    assert.ok(lead >= 5 && lead <= 30, `lead-in after 3 s should be 5–30%, got ${lead}%`);
+    await app.evaluate(() => globalThis.sendProgress(66));
+    await page.waitForFunction(lead => parseInt(document.querySelector('#percent').textContent, 10) >= 66, lead);
+    console.log(`lead-in after 3 s: ${lead}%, after real 66%: ${await page.locator('#percent').innerText()}`);
     await page.mouse.move(10, 10);
     await page.waitForTimeout(600);
     await shot(page, '05-progress.png');

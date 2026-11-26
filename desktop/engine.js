@@ -91,7 +91,8 @@ function downloadArgs(tools, request) {
   const suffix = range.partial ? `.${range.start}-${range.end}` : '';
   const args = [...commonArgs(tools, auth), '--newline', '--no-simulate', '--windows-filenames', '--trim-filenames', '140', '--no-overwrites',
     '-f', formats[mode], '-P', folder, '-o', `%(title)s [%(id)s].${mode}${suffix}.%(ext)s`,
-    '--progress-template', 'download:PROGRESS:%(progress)j',
+    // --print implies --quiet, which silently turns progress off; --progress turns it back on.
+    '--progress', '--progress-template', 'download:PROGRESS:%(progress)j',
     '--print', 'before_dl:PLAN:%(requested_formats)j',
     '--print', 'after_move:FILE:%(filepath)s'];
   // --remux-video also covers the "b" fallback, where no merge happens.
@@ -103,7 +104,9 @@ function downloadArgs(tools, request) {
     // Audio: Opus at 192 kbps — above YouTube's own ~130–160 kbps, so the cut sounds like the original.
     // (Copying audio isn't exact here: yt-dlp seeks before the input, so a copied stream starts early.)
     const video = mode === 'audio' ? '' : '-c:v libx264 -preset fast -crf 18 ';
-    args.push('--downloader-args', `ffmpeg_o:${video}-c:a libopus -b:a 192k`);
+    // yt-dlp runs ffmpeg with -loglevel quiet; -progress still reports "out_time=HH:MM:SS" lines on stderr,
+    // which onLine() turns into clip progress.
+    args.push('--downloader-args', `ffmpeg_o:${video}-c:a libopus -b:a 192k -progress pipe:2`);
   }
   return [...args, '--', normalizeUrl(url)];
 }
