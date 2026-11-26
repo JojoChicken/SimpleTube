@@ -5,11 +5,7 @@
 **Простой загрузчик видео с YouTube для Windows.**
 Вставил ссылку, выбрал кусок, нажал Download. Без рекламы, аккаунтов и лишних кнопок.
 
-<!-- ВИДЕО: нажми ✏️ Edit, перетащи сюда simpletube-promo.mp4, дождись загрузки и у
-
 https://github.com/user-attachments/assets/078ef284-393f-4fb7-a7a4-1dae1f2c2505
-
-дали этот комментарий -->
 
 ### [⬇ Скачать для Windows](https://github.com/JojoChicken/SimpleTube/releases/latest)
 
