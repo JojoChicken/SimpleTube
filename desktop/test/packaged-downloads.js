@@ -11,6 +11,8 @@ const cases = [
   { name: 'whole video, audio only', url: 'https://www.youtube.com/watch?v=jNQXAC9IVRw', mode: 'audio' },
   { name: '4K AV1 clip, video+audio', url: 'https://www.youtube.com/watch?v=aqz-KE-bpKQ', mode: 'full', start: '00:00:10', end: '00:00:13' },
   { name: '4K AV1 clip, video only', url: 'https://www.youtube.com/watch?v=aqz-KE-bpKQ', mode: 'video', start: '00:00:20', end: '00:00:23' },
+  { name: 'music clip, audio only', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', mode: 'audio', start: '00:00:30', end: '00:00:45' },
+  { name: 'music clip, video+audio', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', mode: 'full', start: '00:00:30', end: '00:00:45' },
   { name: '18+ clip, video+audio', url: 'https://www.youtube.com/watch?v=6kLq3WMV1nU', mode: 'full', start: '00:00:05', end: '00:00:08' },
 ];
 
@@ -38,8 +40,9 @@ const cases = [
       const file = (await fs.readdir(folder)).find(f => !before.has(f));
       if (error || !file) { failed++; console.log(`FAIL  ${c.name}: ${error || 'no file'}`); continue; }
       const probe = JSON.parse(execFileSync(ffprobe, ['-v', 'error', '-show_streams', '-show_format', '-of', 'json', path.join(folder, file)]));
-      const streams = probe.streams.map(s => `${s.codec_type}:${s.codec_name}${s.height ? ' ' + s.height + 'p' : ''}`).join(', ');
-      console.log(`OK    ${c.name}: ${file} — ${Number(probe.format.duration).toFixed(1)}s — ${streams}`);
+      const streams = probe.streams.map(s => `${s.codec_type}:${s.codec_name}${s.height ? ' ' + s.height + 'p' : ''}${s.sample_rate ? ' ' + s.sample_rate / 1000 + 'kHz' : ''}`).join(', ');
+      const kbps = Math.round(Number(probe.format.bit_rate) / 1000);
+      console.log(`OK    ${c.name}: ${file} — ${Number(probe.format.duration).toFixed(1)}s — ${streams} — ${kbps} kbps total`);
     }
   } finally { await app.close(); }
   if (failed) process.exitCode = 1;

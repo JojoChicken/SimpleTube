@@ -99,8 +99,11 @@ function downloadArgs(tools, request) {
   if (mode === 'audio') args.push('-x', '--audio-format', 'best');
   if (range.partial) {
     args.push('--download-sections', `*${range.start}-${range.end}`, '--force-keyframes-at-cuts');
-    // Exact video cuts: encode only the selected section, at visually high quality.
-    if (mode !== 'audio') args.push('--downloader-args', 'ffmpeg_o:-c:v libx264 -preset fast -crf 18');
+    // Exact cuts need re-encoding the section. Video: x264 at visually lossless CRF 18.
+    // Audio: Opus at 192 kbps — above YouTube's own ~130–160 kbps, so the cut sounds like the original.
+    // (Copying audio isn't exact here: yt-dlp seeks before the input, so a copied stream starts early.)
+    const video = mode === 'audio' ? '' : '-c:v libx264 -preset fast -crf 18 ';
+    args.push('--downloader-args', `ffmpeg_o:${video}-c:a libopus -b:a 192k`);
   }
   return [...args, '--', normalizeUrl(url)];
 }
