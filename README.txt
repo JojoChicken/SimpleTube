@@ -4,4 +4,4 @@ SimpleTube — простой загрузчик YouTube для Windows, для 
 Переносная сборка: release-v2\SimpleTube-win32-x64\SimpleTube.exe.
 Утилиты (yt-dlp, FFmpeg, Node.js) лежат в tools и копируются в сборку.
 
-Старая версия на Python/Tk удалена; она осталась в истории git (коммит 691da47).
+Старая версия на Python/Tk удалена; она осталась в истории git (коммит 02965a5).
