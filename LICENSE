@@ -20,8 +20,3 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
----
-This license covers SimpleTube's own source code only. Release archives also
-contain third-party programs under their own licenses: Electron (MIT),
-yt-dlp (Unlicense), FFmpeg (GPLv3, see resources/tools/FFmpeg-LICENSE.txt),
-Montserrat font (SIL OFL 1.1).
