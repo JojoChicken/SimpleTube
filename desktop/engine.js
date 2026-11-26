@@ -73,9 +73,14 @@ async function withSignIn(attempt, auth = false) {
   }
 }
 
+// yt-dlp needs a JavaScript runtime to solve YouTube's player challenges. Instead of shipping a separate
+// node.exe we hand it our own executable: Electron runs as plain Node when ELECTRON_RUN_AS_NODE=1
+// (set for every child in run()), and under plain Node process.execPath already is node.
+const JS_RUNTIME = process.execPath;
+
 function commonArgs(tools, auth = false) {
   return ['--ignore-config', '--no-playlist', '--no-color', '--encoding', 'utf-8', '--socket-timeout', '20', '--retries', '2',
-    '--ffmpeg-location', tools, '--js-runtimes', 'node:' + path.join(tools, 'node.exe'),
+    '--ffmpeg-location', tools, '--js-runtimes', 'node:' + JS_RUNTIME,
     ...(auth ? ['--cookies-from-browser', 'firefox'] : [])];
 }
 
@@ -104,7 +109,7 @@ function downloadArgs(tools, request) {
 function run(exe, args, { onLine, signal, timeout = 0, maxOutput = 32 * 1024 * 1024 } = {}) {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) return reject(Error(CANCELLED));
-    const child = spawn(exe, args, { windowsHide: true, shell: false, stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(exe, args, { windowsHide: true, shell: false, stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' } });
     let output = '', errors = '', pendingOut = '', pendingErr = '';
     let aborted = false, timedOut = false, tooLarge = false;
 

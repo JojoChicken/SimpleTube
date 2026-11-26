@@ -56,6 +56,6 @@ npm run package — переносная сборка Windows
 Компоненты и лицензии
 Electron: https://www.electronjs.org/ (MIT; LICENSE и LICENSES.chromium.html)
 yt-dlp: https://github.com/yt-dlp/yt-dlp (официальный Windows executable, GPLv3+)
-FFmpeg: https://www.gyan.dev/ffmpeg/builds/ (GPLv3, исходники: https://ffmpeg.org/download.html)
-Node.js: https://nodejs.org/ (MIT и лицензии зависимостей)
+FFmpeg 9.1 full shared: https://www.gyan.dev/ffmpeg/builds/ (GPLv3, исходники: https://ffmpeg.org/download.html)
+Node.js: встроен в Electron, отдельно не поставляется
 Montserrat: https://github.com/google/fonts/tree/main/ofl/montserrat (OFL.txt)

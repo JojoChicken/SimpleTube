@@ -2,6 +2,8 @@ SimpleTube — простой загрузчик YouTube для Windows, для 
 
 Приложение — в папке desktop (Electron + yt-dlp + FFmpeg), подробности в desktop\README.txt.
 Переносная сборка: release-v2\SimpleTube-win32-x64\SimpleTube.exe.
-Утилиты (yt-dlp, FFmpeg, Node.js) лежат в tools и копируются в сборку.
+Утилиты лежат в tools и копируются в сборку: yt-dlp.exe и FFmpeg 9.1 (сборка gyan.dev full shared:
+ffmpeg.exe, ffprobe.exe и общие av*.dll / sw*.dll). Отдельный node.exe не нужен:
+yt-dlp использует Node.js, встроенный в Electron (ELECTRON_RUN_AS_NODE).
 
 Старая версия на Python/Tk удалена; она осталась в истории git (коммит 02965a5).
