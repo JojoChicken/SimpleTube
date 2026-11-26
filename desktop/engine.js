@@ -42,17 +42,49 @@ function rangeFor(start, end, duration) {
   return { start, end, partial: start > 0 || end < duration - 0.1 };
 }
 
-function commonArgs(tools) {
+// ---------- Sign-in for age-restricted videos ----------
+// Videos are fetched anonymously. Only when YouTube demands a sign-in (18+ or a bot check)
+// do we retry with the user's Firefox cookies; yt-dlp reads them locally and sends them to YouTube only.
+const SIGN_IN_REQUIRED = /Sign in to confirm (your age|you.re not a bot)|age.restricted|inappropriate for some users/i;
+const AGE_GATE = /confirm your age|age.restricted|inappropriate for some users/i;
+const FIREFOX_MISSING = /firefox|cookies? database|could not find|no such file/i;
+
+const MESSAGES = {
+  age: 'This video is 18+. Sign in to YouTube in Firefox and confirm your age. SimpleTube works with Firefox only.',
+  ageNoFirefox: 'This video is 18+ and needs a Firefox sign-in. Install Firefox, sign in to YouTube and confirm your age.',
+  bot: 'YouTube wants to check you’re not a bot. Sign in to YouTube in Firefox and try again.',
+};
+
+/** Turns the error of a signed-in retry into a message the user can act on. */
+function signInError(firstError, retryError) {
+  const age = AGE_GATE.test(firstError.message);
+  if (retryError.message === CANCELLED) return retryError;
+  if (!SIGN_IN_REQUIRED.test(retryError.message) && FIREFOX_MISSING.test(retryError.message)) return Error(age ? MESSAGES.ageNoFirefox : MESSAGES.bot);
+  return Error(age ? MESSAGES.age : MESSAGES.bot);
+}
+
+/** Runs `attempt(auth)` anonymously, then once more with Firefox sign-in if YouTube asked for it. */
+async function withSignIn(attempt, auth = false) {
+  try { return await attempt(auth); }
+  catch (error) {
+    if (auth || !SIGN_IN_REQUIRED.test(error.message)) throw error;
+    try { return await attempt(true); }
+    catch (retryError) { throw signInError(error, retryError); }
+  }
+}
+
+function commonArgs(tools, auth = false) {
   return ['--ignore-config', '--no-playlist', '--no-color', '--encoding', 'utf-8', '--socket-timeout', '20', '--retries', '2',
-    '--ffmpeg-location', tools, '--js-runtimes', 'node:' + path.join(tools, 'node.exe')];
+    '--ffmpeg-location', tools, '--js-runtimes', 'node:' + path.join(tools, 'node.exe'),
+    ...(auth ? ['--cookies-from-browser', 'firefox'] : [])];
 }
 
 function downloadArgs(tools, request) {
-  const { url, folder, mode, range } = request;
+  const { url, folder, mode, range, auth } = request;
   const formats = { full: 'bv+ba/b', video: 'bv', audio: 'ba' };
   if (!formats[mode]) throw Error('Choose what to download.');
   const suffix = range.partial ? `.${range.start}-${range.end}` : '';
-  const args = [...commonArgs(tools), '--newline', '--no-simulate', '--windows-filenames', '--trim-filenames', '140', '--no-overwrites',
+  const args = [...commonArgs(tools, auth), '--newline', '--no-simulate', '--windows-filenames', '--trim-filenames', '140', '--no-overwrites',
     '-f', formats[mode], '-P', folder, '-o', `%(title)s [%(id)s].${mode}${suffix}.%(ext)s`,
     '--progress-template', 'download:PROGRESS:%(progress)j',
     '--print', 'before_dl:PLAN:%(requested_formats)j',
@@ -120,13 +152,16 @@ function run(exe, args, { onLine, signal, timeout = 0, maxOutput = 32 * 1024 * 1
 class Engine {
   constructor(tools) { this.tools = tools; }
 
+  /** Returns video info; `auth: true` means it only opened with the Firefox sign-in, and the download must use it too. */
   async inspect(url, signal) {
-    const raw = await run(path.join(this.tools, 'yt-dlp.exe'),
-      [...commonArgs(this.tools), '--skip-download', '-J', '--', normalizeUrl(url)], { signal, timeout: 90000 });
-    const info = JSON.parse(raw);
+    const { info, auth } = await withSignIn(async auth => {
+      const raw = await run(path.join(this.tools, 'yt-dlp.exe'),
+        [...commonArgs(this.tools, auth), '--skip-download', '-J', '--', normalizeUrl(url)], { signal, timeout: 90000 });
+      return { info: JSON.parse(raw), auth };
+    });
     if (info.is_live) throw Error('Wait until the live stream ends.');
     if (!info.duration) throw Error('This video has no fixed length.');
-    return { url: normalizeUrl(url), title: info.title, duration: info.duration, id: info.id, thumbnail: info.thumbnail, uploader: info.uploader };
+    return { url: normalizeUrl(url), title: info.title, duration: info.duration, id: info.id, thumbnail: info.thumbnail, uploader: info.uploader, auth };
   }
 
   async download(request, onEvent, signal) {
@@ -158,7 +193,7 @@ class Engine {
         onEvent({ stage: 'downloading', percent: lastPercent });
       }
     };
-    await run(path.join(this.tools, 'yt-dlp.exe'), downloadArgs(this.tools, request), { onLine, signal });
+    await withSignIn(auth => run(path.join(this.tools, 'yt-dlp.exe'), downloadArgs(this.tools, { ...request, auth }), { onLine, signal }), Boolean(request.auth));
     if (!finalFile || !(await fs.stat(finalFile)).size) throw Error('The finished file was not found.');
 
     onEvent({ stage: 'processing', percent: 98 });
@@ -174,4 +209,4 @@ class Engine {
   }
 }
 
-module.exports = { Engine, CANCELLED, normalizeUrl, parseTime, rangeFor, commonArgs, downloadArgs, run };
+module.exports = { Engine, CANCELLED, MESSAGES, withSignIn, normalizeUrl, parseTime, rangeFor, commonArgs, downloadArgs, run };

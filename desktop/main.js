@@ -81,7 +81,7 @@ app.whenReady().then(async () => {
     await fs.writeFile(configFile, JSON.stringify(settings));
     const controller = new AbortController(); downloadController = controller; finalFile = null;
     try {
-      const result = await engine.download({ ...request, folder, range, url: metadata.url }, data => { if (!win.isDestroyed()) win.webContents.send('progress', data); }, controller.signal);
+      const result = await engine.download({ ...request, folder, range, url: metadata.url, auth: Boolean(metadata.auth) },data => { if (!win.isDestroyed()) win.webContents.send('progress', data); }, controller.signal);
       finalFile = result.file;
       return result;
     } finally { if (downloadController === controller) downloadController = null; }
