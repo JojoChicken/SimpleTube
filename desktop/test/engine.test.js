@@ -22,7 +22,7 @@ test('Partial commands preserve mode, contain timestamps and exact-cut encoder; 
   const args = downloadArgs('C:\\tools', request);
   assert.equal(args[args.indexOf('--download-sections') + 1], '*2-5');
   assert.ok(args.includes('--force-keyframes-at-cuts'));
-  assert.ok(args.includes('ffmpeg_o:-c:v libx264 -preset fast -crf 18 -c:a libopus -b:a 192k -progress pipe:2'));
+  assert.ok(args.includes('ffmpeg_o:-c:v libx264 -preset fast -crf 18 -c:a aac -b:a 256k -progress pipe:2'));
   const audioClip = downloadArgs('C:\\tools', { ...request, mode: 'audio' });
   assert.equal(audioClip[audioClip.indexOf('--downloader-args') + 1], 'ffmpeg_o:-c:a libopus -b:a 192k -progress pipe:2');
   assert.ok(args.includes('C:\\Folder with spaces'));
